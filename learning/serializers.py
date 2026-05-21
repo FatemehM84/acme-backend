@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Skill, Resource, UserCourse
+from .models import Skill, Resource, UserCourse, ResourceStep
 
 
 
@@ -17,11 +17,28 @@ class SkillSerializer(serializers.ModelSerializer):
         ]
 
 
+class ResourceStepSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = ResourceStep
+        fields = [
+            "id",
+            "title",
+            "order",
+            "duration_minutes",
+        ]
+
+
 
 class ResourceSerializer(serializers.ModelSerializer):
 
     skill_name = serializers.CharField(
         source="skill.name",
+        read_only=True
+    )
+
+    steps = ResourceStepSerializer(
+        many=True,
         read_only=True
     )
 
@@ -40,7 +57,11 @@ class ResourceSerializer(serializers.ModelSerializer):
             "duration_minutes",
             "skill",
             "skill_name",
+            "steps",
         ]
+
+
+
 
 
 
@@ -61,6 +82,11 @@ class UserCourseSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    current_step = ResourceStepSerializer(read_only=True)
+
+    next_step = serializers.SerializerMethodField()
+
+
     class Meta:
         model = UserCourse
         fields = [
@@ -69,7 +95,8 @@ class UserCourseSerializer(serializers.ModelSerializer):
             "course_title",
             "course_url",
             "skill_name",
-            "progress_percent",
+            "current_step",
+            "next_step",
             "status",
             "started_at",
         ]
@@ -79,6 +106,19 @@ class UserCourseSerializer(serializers.ModelSerializer):
             "started_at"
         ]
 
+    def get_next_step(self, obj):
+
+        if not obj.current_step:
+            step = obj.course.steps.first()
+        else:
+            step = obj.course.steps.filter(
+                order__gt=obj.current_step.order
+            ).first()
+
+        if step:
+            return ResourceStepSerializer(step).data
+
+        return None
 
 
 class RecommendCourseSerializer(serializers.Serializer):
@@ -91,6 +131,10 @@ class RecommendCourseSerializer(serializers.Serializer):
 
     is_free = serializers.BooleanField()
 
-    duration_minutes = serializers.IntegerField(
-        required=False
+    duration_minutes = serializers.ChoiceField(
+        choices=Resource.Time_It_Takes
+    )
+
+    resource_type = serializers.ChoiceField(
+        choices=Resource.Resource_types
     )

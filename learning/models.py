@@ -2,7 +2,6 @@ from django.db import models
 
 # Create your models here.
 from django.conf import settings
-from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.text import slugify
 from django.utils import timezone
 
@@ -57,7 +56,14 @@ class Resource(models.Model):
         ('video' , 'فیلم'),
         ('article' , 'مقاله'),
         ('course' , 'کورس'),
-        ('bpodcastk' , 'صوتی-پادکست'),
+        ('podcast' , 'صوتی-پادکست'),
+    ]
+
+    Time_It_Takes = [
+        ('short' , 'کوتاه'),
+        ('medium' , 'متوسط'),
+        ('long' , 'بلند مدت'),
+        ('too long' , 'طولانی مدت'),
     ]
 
     skill = models.ForeignKey(
@@ -98,8 +104,9 @@ class Resource(models.Model):
         default=True
     )
 
-    duration_minutes = models.PositiveIntegerField(
-        null=True,
+    duration_minutes =models.CharField(
+        max_length=20,
+        choices=Time_It_Takes,
         blank=True
     )
 
@@ -119,12 +126,47 @@ class Resource(models.Model):
     
 
 
+
+class ResourceStep(models.Model):
+    resource = models.ForeignKey(
+        Resource,
+        on_delete=models.CASCADE,
+        related_name="steps"
+    )
+
+    title = models.CharField(
+        max_length=255,
+        blank=True
+    )
+
+    order = models.PositiveIntegerField()
+
+    duration_minutes = models.PositiveIntegerField()  # مثلا 40، 60، ...
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+
+    class Meta:
+        ordering = ["order"]
+        unique_together = ("resource", "order")
+
+    def __str__(self):
+        return f"{self.resource.title} - Step {self.order} ({self.title or ''})"
+
+
+
 class UserCourse(models.Model):
 
-    class StatusChoices(models.TextChoices):
-        ACTIVE = "active", "Active"
-        COMPLETED = "completed", "Completed"
-        ABANDONED = "abandoned", "Abandoned"
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("completed", "Completed"),
+        ("abandoned", "Abandoned"),
+    ]
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -138,18 +180,18 @@ class UserCourse(models.Model):
         related_name="user_courses"
     )
 
-    progress_percent = models.PositiveIntegerField(
-        default=0,
-        validators=[
-            MinValueValidator(0),
-            MaxValueValidator(100)
-        ]
+
+    current_step = models.ForeignKey(
+        ResourceStep,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
     )
 
     status = models.CharField(
         max_length=20,
-        choices=StatusChoices.choices,
-        default=StatusChoices.ACTIVE
+        choices=STATUS_CHOICES,
+        default="active"
     )
 
     started_at = models.DateTimeField(
@@ -173,13 +215,6 @@ class UserCourse(models.Model):
         unique_together = ("user", "course")
 
     def save(self, *args, **kwargs):
-
-        if self.progress_percent == 100:
-            self.status = self.StatusChoices.COMPLETED
-
-            if not self.completed_at:
-                self.completed_at = timezone.now()
-
         super().save(*args, **kwargs)
 
     def __str__(self):
