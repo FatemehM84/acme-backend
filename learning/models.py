@@ -273,7 +273,6 @@ class UserCourse(models.Model):
 
 
 
-# مدل پروفایل کاربر برای نگهداری عکس پروفایل
 class UserProfile(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,

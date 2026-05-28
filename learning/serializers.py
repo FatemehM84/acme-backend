@@ -151,19 +151,15 @@ class UserCourseSerializer(serializers.ModelSerializer):
         return None
 
     def get_progress_percentage(self, obj):
-        # شمارش کل مراحل موجود در کورس
         total_steps = obj.course.steps.count()
         if total_steps == 0:
             return 0
         
-        # اگر کاربر هنوز هیچ قدمی را نگذرانده
         if not obj.current_step:
             return 0
             
-        # چون order گام‌ها از ۱ شروع می‌شود، گام فعلی تعداد گام‌های گذرانده‌شده است
         completed_steps = obj.current_step.order
         
-        # اطمینان از قرار گرفتن درصد بین بازه ۰ تا ۱۰۰
         percentage = (completed_steps / total_steps) * 100
         return min(100, max(0, int(round(percentage))))
     
@@ -172,7 +168,7 @@ class UserCourseSerializer(serializers.ModelSerializer):
 
 class RecommendCourseSerializer(serializers.Serializer):
     skill = serializers.IntegerField()
-    subskill = serializers.IntegerField()  # اجباری شدن فیلتر بر اساس ریزمهارت در فرانت‌اند
+    subskill = serializers.IntegerField()  
     level = serializers.ChoiceField(
         choices=Resource.LevelChoices.choices
     )

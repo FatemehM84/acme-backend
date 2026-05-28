@@ -4,15 +4,14 @@ from django.utils.html import format_html
 from .models import Skill, SubSkill
 
 
-# تعریف Inline برای مدیریت استپ‌ها در صفحه کورس
 class ResourceStepInline(admin.TabularInline):
     model = ResourceStep
-    extra = 1  # تعداد فرم خالی برای افزودن استپ جدید
-    fields = ('title', 'order', 'duration_minutes')  # فیلدهایی که در ادمین نمایش داده می‌شوند
+    extra = 1 
+    fields = ('title', 'order', 'duration_minutes') 
 
 @admin.register(Resource)
 class ResourceAdmin(admin.ModelAdmin):
-    inlines = [ResourceStepInline]  # اتصال Inline به مدل Resource
+    inlines = [ResourceStepInline] 
     list_display = ('title', 'skill', 'resource_type', 'level', 'is_free')
     list_filter = ('skill', 'level', 'resource_type')
     search_fields = ('title',)
@@ -23,6 +22,7 @@ class ResourceAdmin(admin.ModelAdmin):
 class UserCourseAdmin(admin.ModelAdmin):
     list_display = ('user', 'course', 'status', 'started_at')
     list_filter = ('status',)
+    search_fields = ('user__username', 'course__title')
 
 
 
