@@ -5,12 +5,17 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import GenericAPIView
 from .serializers import RegisterSerializer, LoginSerializer, LogoutSerializer,MeSerializer
+from drf_spectacular.utils import extend_schema
 
 
 # Create your views here.
 
 #--register mode-----------------------------------
 
+@extend_schema(
+    request=RegisterSerializer,
+    responses={201: RegisterSerializer},
+)
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
@@ -27,6 +32,12 @@ class RegisterView(generics.CreateAPIView):
         )
 
 #--login mode--------------------------------------
+
+@extend_schema(
+        request=LoginSerializer,
+        responses={200: LoginSerializer},
+)
+
 class LoginView(GenericAPIView):
     serializer_class = LoginSerializer
 
