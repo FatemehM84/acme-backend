@@ -4,7 +4,8 @@ from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
 from django.utils import timezone
-
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
 class Skill(models.Model):
@@ -20,6 +21,12 @@ class Skill(models.Model):
     )
 
     description = models.TextField()
+
+    image = models.ImageField(
+        upload_to="skills/",
+        blank=True,
+        null=True
+    )
 
     category = models.CharField(
         max_length=255
@@ -41,6 +48,42 @@ class Skill(models.Model):
 
     def __str__(self):
         return self.name
+    
+
+
+class SubSkill(models.Model):
+    skill = models.ForeignKey(
+        Skill,
+        on_delete=models.CASCADE,
+        related_name="subskills"
+    )
+    name = models.CharField(
+        max_length=255
+    )
+    slug = models.SlugField(
+        blank=True
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+    image = models.ImageField(
+        upload_to="subskills/",
+        blank=True,
+        null=True
+    )
+
+    class Meta:
+        unique_together = ("skill", "name")
+        ordering = ["name"]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.skill.name} -> {self.name}"
     
 
 
@@ -71,6 +114,14 @@ class Resource(models.Model):
         on_delete=models.CASCADE,
         related_name="resources"
     )
+
+    subskill = models.ForeignKey(
+        SubSkill,
+        on_delete=models.PROTECT,
+        related_name="resources"
+
+    )
+
 
     title = models.CharField(
         max_length=255
@@ -171,7 +222,7 @@ class UserCourse(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="user_courses"
+        related_name="user_courses",
     )
 
     course = models.ForeignKey(
@@ -220,3 +271,27 @@ class UserCourse(models.Model):
     def __str__(self):
         return f"{self.user} - {self.course.title}"
 
+
+
+# مدل پروفایل کاربر برای نگهداری عکس پروفایل
+class UserProfile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="profile"
+    )
+    avatar = models.ImageField(
+        upload_to="avatars/",
+        blank=True,
+        null=True
+    )
+
+    def __str__(self):
+        return f"Profile of {self.user}"
+
+
+# ایجاد خودکار پروفایل بلافاصله پس از ایجاد کاربر جدید
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.create(user=instance)
