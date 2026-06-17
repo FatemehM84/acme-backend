@@ -1,4 +1,4 @@
-from django.utils import timezone
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 
 from rest_framework.views import APIView
@@ -6,21 +6,31 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
-from .models import Skill, Resource, UserCourse, ResourceStep
+from .models import (
+    Skill,
+    Resource,
+    UserCourse,
+    ResourceStep,
+    UserCourseStepProgress,
+)
 from .serializers import (
     SkillSerializer,
     ResourceSerializer,
     UserCourseSerializer,
     RecommendCourseSerializer,
+    UpdateCourseStepProgressSerializer,
 )
 from .services import recommend_course
 
 
 class SkillListAPIView(APIView):
-
     def get(self, request):
         skills = Skill.objects.all().prefetch_related("subskills")
-        serializer = SkillSerializer(skills, many=True, context={"request": request})
+        serializer = SkillSerializer(
+            skills,
+            many=True,
+            context={"request": request}
+        )
         return Response(serializer.data)
 
 
@@ -28,12 +38,26 @@ class MyCoursesAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user
         user_courses = (
-            UserCourse.objects.filter(user=user)
-            .select_related("course", "course__skill", "course__subskill", "current_step")
+            UserCourse.objects
+            .filter(user=request.user)
+            .select_related(
+                "course",
+                "course__skill",
+                "course__subskill",
+                "current_step",
+            )
+            .prefetch_related(
+                "course__steps",
+                "step_progresses",
+            )
         )
-        serializer = UserCourseSerializer(user_courses, many=True, context={"request": request})
+
+        serializer = UserCourseSerializer(
+            user_courses,
+            many=True,
+            context={"request": request}
+        )
         return Response(serializer.data)
 
 
@@ -41,41 +65,81 @@ class UpdateUserCourseAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk):
-        user = request.user
-        user_course = get_object_or_404(
-            UserCourse.objects.select_related(
-                "course", "course__skill", "course__subskill", "current_step"
-            ).prefetch_related("course__steps"),
-            pk=pk,
-            user=user,
-        )
+        input_serializer = UpdateCourseStepProgressSerializer(data=request.data)
 
-        step_id = request.data.get("step_id")
-        if not step_id:
+        if not input_serializer.is_valid():
             return Response(
-                {"detail": "step_id is required."},
+                input_serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        step = get_object_or_404(ResourceStep, id=step_id, resource=user_course.course)
+        step_id = input_serializer.validated_data["step_id"]
+        is_done = input_serializer.validated_data["is_done"]
 
-        user_course.current_step = step
-        last_step = user_course.course.steps.order_by("order").last()
+        user_course = get_object_or_404(
+            UserCourse.objects.select_related(
+                "course",
+                "course__skill",
+                "course__subskill",
+                "current_step",
+            ),
+            pk=pk,
+            user=request.user,
+        )
 
-        if last_step and step == last_step:
-            user_course.status = "completed"
-            user_course.completed_at = timezone.now()
-        else:
-            user_course.status = "active"
-            user_course.completed_at = None
+        step = get_object_or_404(
+            ResourceStep,
+            id=step_id,
+            resource=user_course.course,
+        )
 
-        user_course.save()
-        serializer = UserCourseSerializer(user_course, context={"request": request})
+        with transaction.atomic():
+            progress, created = UserCourseStepProgress.objects.select_for_update().get_or_create(
+                user_course=user_course,
+                step=step,
+                defaults={
+                    "is_done": is_done,
+                }
+            )
+
+            if not created:
+                progress.is_done = is_done
+                progress.save(update_fields=[
+                    "is_done",
+                    "completed_at",
+                    "updated_at",
+                ])
+
+            user_course.update_progress_state()
+
+        user_course = get_object_or_404(
+            UserCourse.objects
+            .filter(user=request.user)
+            .select_related(
+                "course",
+                "course__skill",
+                "course__subskill",
+                "current_step",
+            )
+            .prefetch_related(
+                "course__steps",
+                "step_progresses",
+            ),
+            pk=pk,
+        )
+
+        serializer = UserCourseSerializer(
+            user_course,
+            context={"request": request}
+        )
         return Response(serializer.data)
 
     def delete(self, request, pk):
-        user = request.user
-        user_course = get_object_or_404(UserCourse, pk=pk, user=user)
+        user_course = get_object_or_404(
+            UserCourse,
+            pk=pk,
+            user=request.user,
+        )
         user_course.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -85,8 +149,12 @@ class RecommendCourseAPIView(APIView):
 
     def post(self, request):
         serializer = RecommendCourseSerializer(data=request.data)
+
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         course = recommend_course(
             skill=serializer.validated_data["skill"],
@@ -103,7 +171,11 @@ class RecommendCourseAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        return Response(ResourceSerializer(course, context={"request": request}).data)
+        output_serializer = ResourceSerializer(
+            course,
+            context={"request": request}
+        )
+        return Response(output_serializer.data)
 
 
 class AddCourseAPIView(APIView):
@@ -111,16 +183,54 @@ class AddCourseAPIView(APIView):
 
     def post(self, request):
         course_id = request.data.get("course_id")
+
         if not course_id:
             return Response(
                 {"detail": "course_id is required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        course = get_object_or_404(Resource, id=course_id)
-        user = request.user
+        course = get_object_or_404(
+            Resource.objects.prefetch_related("steps"),
+            id=course_id,
+        )
 
-        user_course, created = UserCourse.objects.get_or_create(user=user, course=course)
-        serializer = UserCourseSerializer(user_course, context={"request": request})
+        with transaction.atomic():
+            user_course, created = UserCourse.objects.get_or_create(
+                user=request.user,
+                course=course,
+            )
 
+            UserCourseStepProgress.objects.bulk_create(
+                [
+                    UserCourseStepProgress(
+                        user_course=user_course,
+                        step=step,
+                        is_done=False,
+                    )
+                    for step in course.steps.all()
+                ],
+                ignore_conflicts=True,
+            )
+
+        user_course = get_object_or_404(
+            UserCourse.objects
+            .filter(user=request.user)
+            .select_related(
+                "course",
+                "course__skill",
+                "course__subskill",
+                "current_step",
+            )
+            .prefetch_related(
+                "course__steps",
+                "step_progresses",
+            ),
+            pk=user_course.pk,
+        )
+
+        serializer = UserCourseSerializer(
+            user_course,
+            context={"request": request}
+        )
         return Response(serializer.data)

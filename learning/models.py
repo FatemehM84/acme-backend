@@ -6,6 +6,7 @@ from django.utils.text import slugify
 from django.utils import timezone
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.core.exceptions import ValidationError
 
 
 class Skill(models.Model):
@@ -270,6 +271,49 @@ class UserCourse(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.course.title}"
+
+
+class UserCourseStepProgress(models.Model):
+    user_course = models.ForeignKey(
+        UserCourse,
+        on_delete=models.CASCADE,
+        related_name="step_progresses"
+    )
+    step = models.ForeignKey(
+        ResourceStep,
+        on_delete=models.CASCADE,
+        related_name="user_progresses"
+    )
+    is_done = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("user_course", "step")
+        ordering = ["step__order"]
+
+    def clean(self):
+        if self.user_course_id and self.step_id:
+            if self.step.resource_id != self.user_course.course_id:
+                raise ValidationError(
+                    "This step does not belong to the selected user course."
+                )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+
+        if self.is_done and not self.completed_at:
+            self.completed_at = timezone.now()
+
+        if not self.is_done:
+            self.completed_at = None
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.user_course} - {self.step} - done={self.is_done}"
+
 
 
 
