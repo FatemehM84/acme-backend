@@ -88,9 +88,29 @@ class LogoutSerializer(serializers.Serializer):
         token = RefreshToken(self.validated_data['refresh'])
         token.blacklist()
 
-#--meview------------------------------------------
-class MeSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    email = serializers.EmailField()
-    username = serializers.CharField()
+#--meview/profile------------------------------------------
+class MeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = (
+            'id',
+            'email',
+            'username',
+        )
+        read_only_fields = ('id',)
 
+    def validate_email(self, value):
+        user = self.instance
+
+        if User.objects.exclude(id=user.id).filter(email=value).exists():
+            raise serializers.ValidationError("This email is already used.")
+
+        return value
+
+    def validate_username(self, value):
+        user = self.instance
+
+        if User.objects.exclude(id=user.id).filter(username=value).exists():
+            raise serializers.ValidationError("This username is already used.")
+
+        return value
