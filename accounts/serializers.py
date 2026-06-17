@@ -73,6 +73,7 @@ class LoginSerializer(serializers.Serializer):
                     'id': user.id,
                     'email': user.email,
                     'username': user.username,
+                    'created_at': user.date_joined.isoformat(),
                 }
             }
 
@@ -90,14 +91,17 @@ class LogoutSerializer(serializers.Serializer):
 
 #--meview/profile------------------------------------------
 class MeSerializer(serializers.ModelSerializer):
+    created_at = serializers.DateTimeField(source='date_joined', read_only=True)
+
     class Meta:
         model = User
         fields = (
             'id',
             'email',
             'username',
+            'created_at',
         )
-        read_only_fields = ('id',)
+        read_only_fields = ('id', 'created_at')
 
     def validate_email(self, value):
         user = self.instance
