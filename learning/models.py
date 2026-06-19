@@ -232,12 +232,12 @@ class UserCourse(models.Model):
         related_name="user_courses"
     )
 
-
     current_step = models.ForeignKey(
         ResourceStep,
         on_delete=models.SET_NULL,
         null=True,
-        blank=True
+        blank=True,
+        related_name="current_for_user_courses"
     )
 
     status = models.CharField(
@@ -266,8 +266,51 @@ class UserCourse(models.Model):
     class Meta:
         unique_together = ("user", "course")
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
+    def update_progress_state(self):
+        course_steps = self.course.steps.order_by("order")
+        total_steps = course_steps.count()
+
+        if total_steps == 0:
+            self.current_step = None
+            self.status = "active"
+            self.completed_at = None
+            self.save(update_fields=[
+                "current_step",
+                "status",
+                "completed_at",
+                "updated_at",
+            ])
+            return
+
+        done_step_ids = set(
+            self.step_progresses
+            .filter(is_done=True)
+            .values_list("step_id", flat=True)
+        )
+
+        first_not_done_step = (
+            course_steps
+            .exclude(id__in=done_step_ids)
+            .first()
+        )
+
+        if first_not_done_step:
+            self.current_step = first_not_done_step
+            self.status = "active"
+            self.completed_at = None
+        else:
+            self.current_step = None
+            self.status = "completed"
+
+            if not self.completed_at:
+                self.completed_at = timezone.now()
+
+        self.save(update_fields=[
+            "current_step",
+            "status",
+            "completed_at",
+            "updated_at",
+        ])
 
     def __str__(self):
         return f"{self.user} - {self.course.title}"

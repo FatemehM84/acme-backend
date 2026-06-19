@@ -213,6 +213,8 @@ class AddCourseAPIView(APIView):
                 ignore_conflicts=True,
             )
 
+            user_course.update_progress_state()
+
         user_course = get_object_or_404(
             UserCourse.objects
             .filter(user=request.user)

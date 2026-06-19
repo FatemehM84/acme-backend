@@ -195,9 +195,16 @@ class UserCourseSerializer(serializers.ModelSerializer):
         ).data
 
     def get_next_step(self, obj):
+        if not obj.current_step:
+            return None
+
         progress_map = self._progress_map(obj)
 
-        for step in obj.course.steps.all():
+        next_steps = obj.course.steps.filter(
+            order__gt=obj.current_step.order
+        ).order_by("order")
+
+        for step in next_steps:
             progress = progress_map.get(step.id)
 
             if not progress or not progress.is_done:
