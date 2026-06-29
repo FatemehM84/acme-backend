@@ -34,6 +34,56 @@ class SkillListAPIView(APIView):
         return Response(serializer.data)
 
 
+class CourseListAPIView(APIView):
+
+    def get(self, request):
+        courses = (
+            Resource.objects
+            .select_related("skill", "subskill")
+            .prefetch_related("steps")
+            .order_by("-created_at")
+        )
+
+        skill = request.query_params.get("skill")
+        subskill = request.query_params.get("subskill")
+        level = request.query_params.get("level")
+        resource_type = request.query_params.get("resource_type")
+        is_free = request.query_params.get("is_free")
+        duration_minutes = request.query_params.get("duration_minutes")
+        language = request.query_params.get("language")
+
+        if skill:
+            courses = courses.filter(skill_id=skill)
+
+        if subskill:
+            courses = courses.filter(subskill_id=subskill)
+
+        if level:
+            courses = courses.filter(level=level)
+
+        if resource_type:
+            courses = courses.filter(resource_type=resource_type)
+
+        if duration_minutes:
+            courses = courses.filter(duration_minutes=duration_minutes)
+
+        if language:
+            courses = courses.filter(language=language)
+
+        if is_free is not None:
+            if is_free.lower() == "true":
+                courses = courses.filter(is_free=True)
+            elif is_free.lower() == "false":
+                courses = courses.filter(is_free=False)
+
+        serializer = ResourceSerializer(
+            courses,
+            many=True,
+            context={"request": request}
+        )
+
+        return Response(serializer.data)
+
 class MyCoursesAPIView(APIView):
     permission_classes = [IsAuthenticated]
 

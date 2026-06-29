@@ -7,6 +7,7 @@ from .views import (
     UpdateUserCourseAPIView,
     RecommendCourseAPIView,
     AddCourseAPIView,
+    CourseListAPIView,
 )
 
 urlpatterns = [
@@ -15,6 +16,12 @@ urlpatterns = [
         "skills/",
         SkillListAPIView.as_view(),
         name="skills-list"
+    ),
+
+    path(
+    "courses/",
+    CourseListAPIView.as_view(),
+    name="courses-list"
     ),
 
     path(
