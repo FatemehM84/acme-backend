@@ -29,10 +29,17 @@ MEDIA_ROOT = BASE_DIR / "media"
 SECRET_KEY = 'django-insecure-+2)rbm6#bxdo0d0((s@=c2#^%46eysjemeuk!0d%$z1a0mcdy$'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "roshdino.chbkn.run",
+    "localhost",
+    "127.0.0.1",
+]
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://roshdino.chbkn.run",
+]
 
 # Application definition
 
@@ -91,8 +98,12 @@ WSGI_APPLICATION = 'acme_backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': os.getenv("DB_ENGINE", "django.db.backends.sqlite3"),
+        'NAME': os.getenv("DB_DATABASE", BASE_DIR / "db.sqlite3"),
+        'USER': os.getenv("DB_USERNAME", ""),
+        'PASSWORD': os.getenv("DB_PASSWORD", ""),
+        'HOST': os.getenv("DB_HOST", ""),
+        'PORT': os.getenv("DB_PORT", ""),
     }
 }
 
@@ -133,6 +144,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'static'
 
 AUTH_USER_MODEL = 'accounts.User'
 
