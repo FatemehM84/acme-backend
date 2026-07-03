@@ -107,6 +107,9 @@ class ResourceSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    image_url = serializers.SerializerMethodField()
+
+
     class Meta:
         model = Resource
         fields = [
@@ -125,7 +128,20 @@ class ResourceSerializer(serializers.ModelSerializer):
             "subskill",
             "subskill_name",
             "steps",
+            "image_url",
         ]
+        
+    def get_image_url(self, obj):
+        if not obj.image:
+            return None
+
+        url = obj.image.url
+        request = self.context.get("request")
+
+        if request:
+            return request.build_absolute_uri(url)
+
+        return url
 
 
 class UserCourseSerializer(serializers.ModelSerializer):
@@ -137,6 +153,8 @@ class UserCourseSerializer(serializers.ModelSerializer):
         source="course.url",
         read_only=True
     )
+    course_image_url = serializers.SerializerMethodField()
+
     skill_name = serializers.CharField(
         source="course.skill.name",
         read_only=True
@@ -160,6 +178,7 @@ class UserCourseSerializer(serializers.ModelSerializer):
             "course",
             "course_title",
             "course_url",
+            "course_image_url",
             "skill_name",
             "subskill_name",
             "current_step",
@@ -175,6 +194,18 @@ class UserCourseSerializer(serializers.ModelSerializer):
             "status",
             "started_at",
         ]
+
+    def get_course_image_url(self, obj):
+        if not obj.course.image:
+            return None
+
+        url = obj.course.image.url
+        request = self.context.get("request")
+
+        if request:
+            return request.build_absolute_uri(url)
+
+        return url
 
     def _progress_map(self, obj):
         return {

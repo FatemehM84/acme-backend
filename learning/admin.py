@@ -11,10 +11,73 @@ class ResourceStepInline(admin.TabularInline):
 
 @admin.register(Resource)
 class ResourceAdmin(admin.ModelAdmin):
-    inlines = [ResourceStepInline] 
-    list_display = ('title', 'skill', 'resource_type', 'level', 'is_free')
-    list_filter = ('skill', 'level', 'resource_type')
-    search_fields = ('title',)
+    inlines = [ResourceStepInline]
+
+    list_display = (
+        "id",
+        "title",
+        "skill",
+        "subskill",
+        "resource_type",
+        "level",
+        "is_free",
+        "duration_minutes",
+        "image_preview",
+    )
+
+    list_display_links = (
+        "id",
+        "title",
+    )
+
+    list_filter = (
+        "skill",
+        "subskill",
+        "level",
+        "resource_type",
+        "is_free",
+        "duration_minutes",
+        "language",
+    )
+
+    search_fields = (
+        "title",
+        "description",
+        "provider_name",
+        "url",
+        "skill__name",
+        "subskill__name",
+    )
+
+    fields = (
+        "skill",
+        "subskill",
+        "title",
+        "resource_type",
+        "description",
+        "image",
+        "image_preview",
+        "provider_name",
+        "url",
+        "language",
+        "level",
+        "is_free",
+        "duration_minutes",
+    )
+
+    readonly_fields = (
+        "image_preview",
+    )
+
+    def image_preview(self, obj):
+        if obj and obj.image:
+            return format_html(
+                '<img src="{}" style="height:60px;width:90px;object-fit:cover;border-radius:8px;" />',
+                obj.image.url
+            )
+        return "—"
+
+    image_preview.short_description = "Preview"
 
 
 

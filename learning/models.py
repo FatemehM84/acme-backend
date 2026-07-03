@@ -140,6 +140,12 @@ class Resource(models.Model):
 
     url = models.URLField()
 
+    image = models.ImageField(
+    upload_to="courses/",
+    blank=True,
+    null=True
+)
+
     language = models.CharField(
         choices=[('Persian' , 'فارسی'),
                  ('English' , 'انگلیسی'),
