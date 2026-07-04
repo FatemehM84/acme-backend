@@ -8,6 +8,7 @@ from .views import (
     RecommendCourseAPIView,
     AddCourseAPIView,
     CourseListAPIView,
+    UserProfileAPIView,
 )
 
 urlpatterns = [
@@ -46,5 +47,11 @@ urlpatterns = [
         "add-course/",
         AddCourseAPIView.as_view(),
         name="add-course"
+    ),
+
+    path(
+    "profile/",
+    UserProfileAPIView.as_view(),
+    name="user-profile"
     ),
 ]
