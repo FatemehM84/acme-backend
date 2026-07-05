@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework import serializers
 from .models import (
     Skill,
@@ -327,10 +328,4 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if not obj.avatar:
             return None
 
-        url = obj.avatar.url
-        request = self.context.get("request")
-
-        if request:
-            return request.build_absolute_uri(url)
-
-        return url
+        return f"{settings.PUBLIC_BACKEND_URL}{obj.avatar.url}"
