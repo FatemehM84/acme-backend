@@ -10,6 +10,30 @@ from .models import (
     UserProfile,
 )
 
+def build_file_url(file_field, request=None):
+    if not file_field:
+        return None
+
+    try:
+        url = file_field.url
+    except Exception:
+        return None
+
+    public_backend_url = getattr(
+        settings,
+        "PUBLIC_BACKEND_URL",
+        ""
+    ).rstrip("/")
+
+    if public_backend_url:
+        return f"{public_backend_url}{url}"
+
+    if request:
+        return request.build_absolute_uri(url)
+
+    return url
+
+
 
 class SubSkillSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
@@ -19,12 +43,10 @@ class SubSkillSerializer(serializers.ModelSerializer):
         fields = ["id", "skill", "name", "image_url"]
 
     def get_image_url(self, obj):
-        if not obj.image:
-            return None
-
-        url = obj.image.url
-        request = self.context.get("request")
-        return request.build_absolute_uri(url) if request else url
+        return build_file_url(
+            obj.image,
+            self.context.get("request")
+        )
 
 
 class SkillSerializer(serializers.ModelSerializer):
@@ -44,12 +66,10 @@ class SkillSerializer(serializers.ModelSerializer):
         ]
 
     def get_image_url(self, obj):
-        if obj.image:
-            request = self.context.get("request")
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            return obj.image.url
-        return None
+        return build_file_url(
+            obj.image,
+            self.context.get("request")
+        )
 
 
 class ResourceStepSerializer(serializers.ModelSerializer):
@@ -134,16 +154,10 @@ class ResourceSerializer(serializers.ModelSerializer):
         ]
         
     def get_image_url(self, obj):
-        if not obj.image:
-            return None
-
-        url = obj.image.url
-        request = self.context.get("request")
-
-        if request:
-            return request.build_absolute_uri(url)
-
-        return url
+        return build_file_url(
+            obj.image,
+            self.context.get("request")
+        )
 
 
 class UserCourseSerializer(serializers.ModelSerializer):
@@ -198,16 +212,10 @@ class UserCourseSerializer(serializers.ModelSerializer):
         ]
 
     def get_course_image_url(self, obj):
-        if not obj.course.image:
-            return None
-
-        url = obj.course.image.url
-        request = self.context.get("request")
-
-        if request:
-            return request.build_absolute_uri(url)
-
-        return url
+        return build_file_url(
+            obj.course.image,
+            self.context.get("request")
+        )
 
     def _progress_map(self, obj):
         return {
@@ -325,7 +333,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         ]
 
     def get_avatar_url(self, obj):
-        if not obj.avatar:
-            return None
-
-        return f"{settings.PUBLIC_BACKEND_URL}{obj.avatar.url}"
+        return build_file_url(
+            obj.avatar,
+            self.context.get("request")
+        )
