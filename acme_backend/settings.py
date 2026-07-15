@@ -21,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-PUBLIC_BACKEND_URL = "https://roshdino.chbkn.run"
+PUBLIC_BACKEND_URL = "https://roshdino.chbkn.dev"
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -33,13 +33,13 @@ SECRET_KEY = 'django-insecure-+2)rbm6#bxdo0d0((s@=c2#^%46eysjemeuk!0d%$z1a0mcdy$
 DEBUG = False
 
 ALLOWED_HOSTS = [
-    "roshdino.chbkn.run",
+    "roshdino.chbkn.dev",
     "localhost",
     "127.0.0.1",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://roshdino.chbkn.run",
+    "https://roshdino.chbkn.dev",
 ]
 
 # Application definition
